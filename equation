@@ -1,0 +1,46 @@
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"  # get the full path to the directory ./blink is in
+kbrightness="$DIR/kbrightness"                           # full path to the kbrightness binary
+
+
+low_level=0
+before=$("$kbrightness")  # get the current brightness level
+
+#edit these values
+refresh=0.01 #when to refresh, in seconds
+frequency=100 #how much to divide the graph by
+min=-.414 #the domain start
+max=2.414 #the domain end
+peak=2 #inbetween the domains, the highest value
+minimum=0 #inbetween the domains, the lowest value
+#
+
+peak=$(echo "$peak - $minimum" | bc -l)
+interval=$(echo "($max + $min)/($frequency)" | bc -l)
+currenti=$min
+
+while :
+do
+    if (( $(echo "$currenti >= $max" | bc -l) )); then
+        interval=$(echo "($interval)^(2)" | bc -l)
+        interval=$(echo "sqrt($interval)" | bc -l)
+        interval=$(echo "$interval * -1" | bc -l)
+    fi
+    if (( $(echo "$currenti <= $min" | bc -l) )); then
+        interval=$(echo "($interval)^(2)" | bc -l)
+        interval=$(echo "sqrt($interval)" | bc -l)
+    fi
+    currenti=$(echo "$currenti + $interval" | bc -l)
+    low_level=$(echo "(-1*($currenti-1)^(2))+2" | bc -l)
+    low_level=$(echo "($low_level-$minimum)" | bc -l)
+    low_level=$(echo "$low_level/$peak" | bc -l)
+
+    #ensures the level never goes negative
+    if (( $(echo "$low_level < 0" | bc -l) )); then
+        low_level=0
+    fi
+    "$kbrightness" $low_level
+    #echo $low_level
+    sleep $refresh
+done
+
+"$kbrightness" $before
