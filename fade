@@ -1,4 +1,4 @@
 #!/bin/bash
 echo "press ctrl+c in terminal to stop"
-cd ~/fade-keyboard-master/
-./equation
+cd ~/fade-keyboard-master/ && ./equation
+
