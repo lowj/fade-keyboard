@@ -1,46 +1,84 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"  # get the full path to the directory ./blink is in
 kbrightness="$DIR/kbrightness"                           # full path to the kbrightness binary
 
+level=0
 
-low_level=0
-before=$("$kbrightness")  # get the current brightness level
-
-#edit these values
+####edit these values####
+#refresh mainly determines how smooth or choppy the fade is
+#The higher the value, the smoother. This will also cause the fade to be faster
 refresh=0.01 #when to refresh, in seconds
-frequency=100 #how much to divide the graph by
-min=-.414 #the domain start
-max=2.414 #the domain end
-peak=2 #inbetween the domains, the highest value
-minimum=0 #inbetween the domains, the lowest value
-#
+
+#frequency will determine how many parts to divide the graph into
+#The higher the value, the more pieces there will be, causing the fade to be slower
+frequency=50 #how much to divide the graph by
+
+#Before editing these values, make sure to enter the correct function
+#The default is f(x) = (-((x/2)-1)^2) + 2
+#It can be editited on line 66
+
+#To choose the section of the graph to iterate back and forth on
+start=2 #the domain start
+end=4.828 #the domain end
+
+#To scale the graph
+peak=2 #inbetween the domains on the graph, the highest value
+minimum=0 #inbetween the domains on the graph, the lowest value
+
+#Fine Tuning
+sleepAtStart=0 #how long to wait after hitting the domain start
+sleepAtEnd=0.15 #how long to wait after hitting the domain end
+
+sleepAtStartLvl=0 #brightness to use while waiting the sleepAtStart time
+#If used make sure to uncomment line 57
+sleepAtEndLvl=0 #brightness to use while waiting the sleepMax time
+#If used make sure to uncomment line 49
+#########################
 
 peak=$(echo "$peak - $minimum" | bc -l)
-interval=$(echo "($max + $min)/($frequency)" | bc -l)
-currenti=$min
+interval=$(echo "($end + $start)/($frequency)" | bc -l)
+currenti=$start
 
 while :
 do
-    if (( $(echo "$currenti >= $max" | bc -l) )); then
+    #This is when the end domain of the graph gets hit
+    if (( $(echo "$currenti >= $end" | bc -l) )); then
+        #Makes the interval negative so it starts iterating to the left
         interval=$(echo "($interval)^(2)" | bc -l)
         interval=$(echo "sqrt($interval)" | bc -l)
         interval=$(echo "$interval * -1" | bc -l)
+        #"$kbrightness" $sleepAtEndLvl
+        sleep $sleepAtEnd
     fi
-    if (( $(echo "$currenti <= $min" | bc -l) )); then
+    #This is when the start domain of the graph get hit
+    if (( $(echo "$currenti <= $start" | bc -l) )); then
+        #Makes the interval positive so it starts iterating to the right
         interval=$(echo "($interval)^(2)" | bc -l)
         interval=$(echo "sqrt($interval)" | bc -l)
+        #"$kbrightness" $sleepAtStartLvl
+        sleep $sleepAtStart
     fi
+
+    #currenti is like the x value in a f(x) function. 
+    #This adds a certian interval each time in the loop to iterate over the graph
     currenti=$(echo "$currenti + $interval" | bc -l)
-    low_level=$(echo "(-1*($currenti-1)^(2))+2" | bc -l)
-    low_level=$(echo "($low_level-$minimum)" | bc -l)
-    low_level=$(echo "$low_level/$peak" | bc -l)
+
+    #This is the function. 
+    level=$(echo "(-1*((($currenti)/2)-1)^(2))+2" | bc -l)
+
+    #This shifts the graph so the lowest value is now 0
+    level=$(echo "($level-$minimum)" | bc -l)
+
+    #Scales the graph so it is between 0 and 1
+    level=$(echo "$level/$peak" | bc -l)
 
     #ensures the level never goes negative
-    if (( $(echo "$low_level < 0" | bc -l) )); then
-        low_level=0
+    if (( $(echo "$level < 0" | bc -l) )); then
+        level=0
     fi
-    "$kbrightness" $low_level
-    #echo $low_level
+
+    #This line sets the brightnes
+    "$kbrightness" $level
+    #echo $currenti
+    #echo $level
     sleep $refresh
 done
-
-"$kbrightness" $before
